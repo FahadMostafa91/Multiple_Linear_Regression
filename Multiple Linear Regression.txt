@@ -1,0 +1,98 @@
+
+# Multiple Linear Regression, Hypotheis Test and Cross Validation
+# How to read file in R
+library(readxl)
+ENB2012 <- read_excel("C:/Users/desktop/data.xlsx")
+data=ENB2012 # Name of my data set, change it according to yours
+# LIBRARY should be loaded:
+library(lattice)
+library(ggplot2)
+library(caret)
+library(corrplot)
+library(car)
+library(lmtest)
+library(sandwich)
+# Name of each predictors/input variables
+Relative_compactness= data$X1
+Surface_area= data$X2
+Wall_area = data$X3
+Roof_area = data$X4
+Overall_height = data$X5
+Orientation = data$X6
+Glazing_area = data$X7
+Glazing_area_distribution = data$X8
+Cooling_load = data$Y2
+#Linear model fuction for regression
+model2<-lm(Cooling_load~
+ Relative_compactness+
+ Surface_area+
+ Overall_height+
+ Wall_area+
+ Glazing_area
+ , data = data)
+summary(model2)
+anova(model2)
+# testing heteroskedasticity
+ncvTest(model2)
+# Residuals vs. Fitted only
+residualPlots(model2, ~1, fitted=TRUE)
+# Outliers - QQ Plots
+qqPlot(model2, id.n=3)
+### Box cox transformation
+y <-boxcox(model2, plotit = TRUE)
+boxcox_CL=((Cooling_load^(-0.8)) - 1)/ (-0.8)
+model2_tnf<-lm(boxcox_CL~
+Preprints (www.preprints.org) | NOT PEER-REVIEWED | Posted: 5 October 2020 doi:10.20944/preprints202010.0082.v1
+25
+ Relative_compactness+
+ Surface_area+
+ Overall_height+
+ Wall_area+
+ Glazing_area
+ , data = data)
+summary(model2_tnf)
+# Residuals vs. Fitted only
+residualPlots(model2_tnf, ~1, fitted=TRUE)
+# Outliers - QQ Plots
+qqPlot(model2_tnf, id.n=3)
+# fitting model with weights/ WLS
+model_wt<- update(model2_tnf, weights=1/boxcox_CL)
+summary(model_wt)
+anova(model_wt)
+plot(model_wt)
+# testing heteroskedasticity
+ncvTest(model_wt)
+Grazing_area=Glazing_area
+#residual plot
+residualPlots(model_wt, fitted=TRUE)
+residualPlots(model_wt, ~Relative_compactness, fitted=TRUE)
+residualPlots(model_wt, ~Surface_area, fitted=TRUE)
+residualPlots(model_wt, ~Overall_height, fitted=TRUE)
+residualPlots(model_wt, ~Wall_area, fitted=TRUE)
+residualPlots(model_wt, ~Glazing_area, fitted=TRUE)
+# to see sqrt(std_res) and leverage
+plot(model_wt)
+# Outliers - QQ Plots
+qqPlot(model_wt, id.n=3)
+# High Leverage (hat) points
+influenceIndexPlot(model_wt, id.n=3)
+#Influence bubble plot
+influencePlot(model_wt, id.n=3)
+# Confidence Interval
+confint(model_wt)
+# cross validation for boxcox_CLm2
+data5 <-data.frame(boxcox_CL,
+ Relative_compactness,
+ Surface_area,
+ Overall_height,
+ Wall_area,
+ Glazing_area)
+train3.control=trainControl(method="cv",number=5)
+model3<- train(boxcox_CL~., data = data5, method = "lm",
+Preprints (www.preprints.org) | NOT PEER-REVIEWED | Posted: 5 October 2020 doi:10.20944/preprints202010.0082.v1
+26
+ trControl = train3.control)
+print(model3)
+model3$results
+# Influential Variables- Added- variable
+avPlots(model_wt, ~Glazing_area,id.n=2, id.cex=0.7)
